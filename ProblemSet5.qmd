@@ -1,0 +1,188 @@
+---
+title: "Problem Set 5"
+author: "Rajvi Jasani"
+format: 
+  html: 
+    toc: true
+    embed-resources: true
+  pdf: default
+---
+
+## GitHub Repository
+
+This is the link to my GitHub repository <https://github.com/rajvijasani/STATS506-Problem-Set-5.git>
+
+## Problem 1 - OOP Programming
+a.
+```{r}
+library(Rcpp)
+
+# including the C++ function to calculate GCD
+cppFunction("
+int gcd(int x, int y) {
+ return  std::gcd(x, y);
+}")
+
+# including the C++ function to calculate LCM
+cppFunction("
+int lcm(int x, int y) {
+ return  std::lcm(x, y);
+}")
+
+# class definition
+setClass("rational", slots = c(a = "numeric", b = "numeric"))
+
+# constructor definition
+rational <- function(a, b) {
+  # checking if inputs are not numeric
+  if (!is.numeric(a) || !is.numeric(b)) {
+    stop("Inputs must be numeric")
+  }
+  # converting numeric inputs to integers
+  a <- as.integer(a)
+  b <- as.integer(b)
+  return(new("rational", a = a, b = b))
+}
+
+# checking for validity of inputs
+setValidity("rational", function(object) {
+  # denominator cannot be zero
+  if (as.numeric(object@b) == 0) {
+    stop("Denominator can't be zero")
+  }
+  return(TRUE)
+})
+
+# defining a show method for the rational class
+setMethod("show", "rational", function(object) {
+  # displaying the rational in mixed fraction form
+  cat(object@a, "/", object@b)
+  return(invisible(object))
+})
+
+# setting and defining a new method to simplify the input rational
+setGeneric("simplify", function(object) {
+  standardGeneric("simplify")
+})
+setMethod("simplify", "rational", function(object) {
+  # calculating the gcd of the numerator and denominator
+  gcd_val <- gcd(object@a, object@b)
+  # dividing the numerator andd denominator by their gcd
+  # to simply the fraction
+  object@a <- object@a / gcd_val
+  object@b <- object@b / gcd_val
+  return(object)
+})
+
+# setting and defining a new method to find the quotient in decimal form
+setGeneric("quotient", function(object, digits = 5) {
+  standardGeneric("quotient")
+})
+setMethod("quotient", "rational", function(object, digits = 5) {
+  # printing the quotient rounded upto the digits given as input
+  print(round(object@a / object@b, digits))
+  # returning the actual quotient without rounding off
+  return(invisible(object@a / object@b))
+})
+
+# defining addition operation for 2 rational objects
+setMethod("+", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
+  # finding the lcm of denominators
+  b <- lcm(e1@b, e2@b)
+  # multiplying both numerators by remainder of division
+  # of lcm by corresponding denominator
+  # (basic method in math)
+  # and adding them to get the new numerator
+  a <- (e1@a * (b / e1@b)) + (e2@a * (b / e2@b))
+  # returning the simplified fraction
+  return(simplify(rational(a = a, b = b)))
+})
+# defining subtraction operation for 2 rational objects
+setMethod("-", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
+  # finding the lcm of denominators
+  b <- lcm(e1@b, e2@b)
+  # multiplying both numerators by remainder of division
+  # of lcm by corresponding denominator
+  # (basic method in math)
+  # and subtracting them to get the new numerator
+  a <- (e1@a * (b / e1@b)) - (e2@a * (b / e2@b))
+  # returning the simplified fraction
+  return(simplify(rational(a = a, b = b)))
+})
+# defining multiplication operation for 2 rational objects
+setMethod("*", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
+  # multiplying the numerators
+  a <- e1@a * e2@a
+  # multiplying the denominators
+  b <- e1@b * e2@b
+  # returning the simplified fraction
+  return(simplify(rational(a = a, b = b)))
+})
+# defining division operation for 2 rational objects
+setMethod("/", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
+  # if either of the numerators is a zero,
+  # the result will be 0/1
+  # this also avoids errors when inverting one fraction
+  if (e1@a == 0 || e2@a == 0) {
+    return(rational(a = 0, b = 1))
+  }
+  # inverting 2nd fraction and performing
+  # multiplication of numerators and denominators
+  a <- e1@a * e2@b
+  b <- e1@b * e2@a
+  # returning the simplified fraction
+  return(simplify(rational(a = a, b = b)))
+})
+```
+b.
+```{r}
+r1 <- rational(a = 24, b = 6)
+r2 <- rational(a = 7, b = 230)
+r3 <- rational(a = 0, b = 4)
+print(r1)
+print(r3)
+print(r1 + r2)
+print(r1 - r2)
+print(r1 * r2)
+print(r1 / r2)
+print(r1 + r3)
+print(r1 * r3)
+print(r2 / r3)
+quotient(r1)
+quotient(r2)
+quotient(r2, digits = 3)
+quotient(r2, digits = 3.14)
+tryCatch({
+  quotient(r2, digits = "avocado")
+}, error = function(e) {
+  message("Error: ", e$message)
+})
+q2 <- quotient(r2, digits = 3)
+print(q2)
+quotient(r3)
+print(simplify(r1))
+print(simplify(r2))
+print(simplify(r3))
+```
+c.
+```{r}
+# Checking when denominator is zero
+tryCatch({
+  print(rational(a = 1, b = 0))
+}, error = function(e) {
+  message("Error: ", e$message)
+})
+# Checking when denominator is non numeric
+tryCatch({
+  print(rational(a = 1, b = "hello"))
+}, error = function(e) {
+  message("Error: ", e$message)
+})
+# Checking when numerator is non numeric
+tryCatch({
+  print(rational(a = "world", b = 4))
+}, error = function(e) {
+  message("Error: ", e$message)
+})
+```
+
