@@ -186,3 +186,44 @@ tryCatch({
 })
 ```
 
+## Problem 2 - plotly
+```{r}
+df <- read.csv("data/df_for_ml_improved_new_market.csv")
+```
+
+## Problem 3 - data.table
+```{r}
+library(data.table)
+library(nycflights13)
+flights <- data.table(flights)
+```
+a.
+
+Departure
+```{r}
+airports <- data.table(airports)
+flights[, .(mean_delay = round(mean(dep_delay, na.rm = TRUE), 3),
+            median_delay = median(dep_delay, na.rm = TRUE)), by = origin][airports, on = .(origin = faa), nomatch = NULL][, .(name, mean_delay, median_delay)][order(-mean_delay)]
+```
+Arrival
+```{r}
+flights_modified <- flights[, .(
+  mean_delay = round(mean(arr_delay, na.rm = TRUE), 3),
+  median_delay = median(arr_delay, na.rm = TRUE),
+  num_flights = .N
+), by = dest][num_flights >= 10]
+# created a new data.table called flights_modified to right join on airports
+# there are a few entries not included in the airports data 
+# but are present in the flights data
+# thus right join is required to include these entries.
+# we use faa code to represent these airports instead of name
+airports[flights_modified, on = .(faa = dest), nomatch = NA][, name := ifelse(is.na(name), faa, name)][, .(name, mean_delay, median_delay)][order(-mean_delay)]
+```
+b.
+```{r}
+planes <- data.table(planes)
+# converting from minutes to hours
+# grouping by model as different tail number planes can be of same model
+flights[, time := air_time / 60][, flight_speed := distance / time][planes, on = .(tailnum), nomatch = NULL][, .(avg_speed = mean(flight_speed, na.rm = TRUE), num_flights = .N), by = model][avg_speed == max(avg_speed, na.rm = TRUE)]
+```
+
