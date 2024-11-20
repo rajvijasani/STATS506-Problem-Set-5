@@ -5,7 +5,6 @@ format:
   html: 
     toc: true
     embed-resources: true
-  pdf: default
 ---
 
 ## GitHub Repository
@@ -45,13 +44,13 @@ rational <- function(a, b) {
 }
 
 # checking for validity of inputs
-setValidity("rational", function(object) {
+invisible(setValidity("rational", function(object) {
   # denominator cannot be zero
   if (as.numeric(object@b) == 0) {
     stop("Denominator can't be zero")
   }
   return(TRUE)
-})
+}))
 
 # defining a show method for the rational class
 setMethod("show", "rational", function(object) {
@@ -61,13 +60,13 @@ setMethod("show", "rational", function(object) {
 })
 
 # setting and defining a new method to simplify the input rational
-setGeneric("simplify", function(object) {
+invisible(setGeneric("simplify", function(object) {
   standardGeneric("simplify")
-})
+}))
 setMethod("simplify", "rational", function(object) {
   # calculating the gcd of the numerator and denominator
   gcd_val <- gcd(object@a, object@b)
-  # dividing the numerator andd denominator by their gcd
+  # dividing the numerator and denominator by their gcd
   # to simply the fraction
   object@a <- object@a / gcd_val
   object@b <- object@b / gcd_val
@@ -75,11 +74,11 @@ setMethod("simplify", "rational", function(object) {
 })
 
 # setting and defining a new method to find the quotient in decimal form
-setGeneric("quotient", function(object, digits = 5) {
+invisible(setGeneric("quotient", function(object, digits = 5) {
   standardGeneric("quotient")
-})
+}))
 setMethod("quotient", "rational", function(object, digits = 5) {
-  # printing the quotient rounded upto the digits given as input
+  # printing the quotient rounded up to the digits given as input
   print(round(object@a / object@b, digits))
   # returning the actual quotient without rounding off
   return(invisible(object@a / object@b))
@@ -97,6 +96,7 @@ setMethod("+", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
   # returning the simplified fraction
   return(simplify(rational(a = a, b = b)))
 })
+
 # defining subtraction operation for 2 rational objects
 setMethod("-", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
   # finding the lcm of denominators
@@ -109,6 +109,7 @@ setMethod("-", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
   # returning the simplified fraction
   return(simplify(rational(a = a, b = b)))
 })
+
 # defining multiplication operation for 2 rational objects
 setMethod("*", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
   # multiplying the numerators
@@ -118,6 +119,7 @@ setMethod("*", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
   # returning the simplified fraction
   return(simplify(rational(a = a, b = b)))
 })
+
 # defining division operation for 2 rational objects
 setMethod("/", signature(e1 = "rational", e2 = "rational"), function(e1, e2) {
   # if either of the numerators is a zero,
@@ -188,8 +190,105 @@ tryCatch({
 
 ## Problem 2 - plotly
 ```{r}
+#| message: false
+library(ggplot2)
+library(plotly)
 df <- read.csv("data/df_for_ml_improved_new_market.csv")
 ```
+a.
+```{r}
+# combining columns of different genre into one (opposite of factoring)
+df_long <- df |>
+  reshape(
+    varying = grep("^Genre", names(df), value = TRUE),
+    v.names = "Presence",
+    timevar = "Genre",
+    times = grep("^Genre", names(df), value = TRUE),
+    direction = "long"
+  )
+df_long <- df_long[df_long$Presence == 1, ]
+
+# counting occurrences of each combination of year and Genre
+df_genre_distribution <- as.data.frame(table(df_long$year, df_long$Genre))
+colnames(df_genre_distribution) <- c("year", "Genre", "n")
+
+plot1 <- df_genre_distribution |>
+  plot_ly(
+    x = ~ year,
+    y = ~ n,
+    color = ~ Genre,
+    type = "bar",
+    text = ~ paste("Year:", year, "<br>Genre:", Genre, "<br>Count:", n),
+    hoverinfo = "text"
+  ) |>
+  layout(
+    title = "Genre Distribution Over Years",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Count"),
+    barmode = "stack"
+  )
+
+plot1
+```
+A stacked bar plot with different genres colored differently can help easily spot the trend. It is quite clear from this graph that the distribution of genre of sales changes over the years but differs from genre to genre. At the beginning, the sales for each genre were quite low. With time, we see there is an increase in sales of sculptures and photographs. However, they both seem to have a steady amount of sales in the last half, between the years 2005-2010. The other genres also have increase in sales but the count isn't as major as photography and sculptures. One interesting observation I noticed was that the sales of paintings genre looks almost equal to other genre. This can be verified by looking at the count for each by hovering over them. This is where plotly's inter-activeness comes in handy.
+
+b.
+```{r}
+# overall average sales price over years
+df_avg_price <- aggregate(price_usd ~ year,
+                          data = df,
+                          FUN = mean,
+                          na.rm = TRUE)
+
+# genre-wise average sales price over years
+df_genre_price <- aggregate(price_usd ~ year + Genre,
+                            data = df_long,
+                            FUN = mean,
+                            na.rm = TRUE)
+
+
+# plot for overall average sales price over years
+plot2 <- plot_ly(
+  data = df_avg_price,
+  x = ~ year,
+  y = ~ price_usd,
+  type = 'scatter',
+  mode = 'lines',
+  name = 'Average Price (Overall)',
+  line = list(color = 'black')
+)
+
+genre_colors <- c('red', 'green', 'purple', 'orange', 'cyan')
+
+# creating a separate trace for each genre and adding it to the overall plot
+for (i in 1:length(unique(df_genre_price$Genre))) {
+  genre <- unique(df_genre_price$Genre)[i]
+  plot2 <- plot2 |>
+    add_trace(
+      data = subset(df_genre_price, Genre == genre),
+      x = ~ year,
+      y = ~ price_usd,
+      type = 'scatter',
+      mode = 'lines',
+      name = paste('Average Price (', genre, ')', sep = ""),
+      line = list(color = genre_colors[i], width = 1)
+    )
+}
+
+# layout to adjust title and axis labels
+plot2 <- plot2 |>
+  layout(
+    title = "Average Sales Price in USD Over Time and by Genre",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Average Price (USD)"),
+    legend = list(title = list(text = "Genre"))
+  )
+
+plot2
+```
+The line plot is the simplest and most informative graph to look at a trend. Looking at the graph of overall average, we see that there is an overall increase in average sales price over the years until 2008 after which we can notice an overall decline. The increase and decrease in the prices is not constant and varies over period of years. The genre-wise plots show the demand of each genre through their sale prices over years. We can identify that some genres are more susceptible to market trends/popularity, like Photography and Print, while others are more stable. When there is an increase in demand of a particular genre, like Photography peaking in 2008, the overall sale prices also increased dramatically. Similarly, the rise and falls seen in overall average line can be justified and understood by looking at the genre-wise lines.
+
+*Attribution of Source:* Used ChatGPT for help with reshape, aggregate and plot_ly syntax.
 
 ## Problem 3 - data.table
 ```{r}
@@ -213,7 +312,7 @@ flights_modified <- flights[, .(
   num_flights = .N
 ), by = dest][num_flights >= 10]
 # created a new data.table called flights_modified to right join on airports
-# there are a few entries not included in the airports data 
+# there are a few entries not included in the airports data
 # but are present in the flights data
 # thus right join is required to include these entries.
 # we use faa code to represent these airports instead of name
